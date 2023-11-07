@@ -1,0 +1,1 @@
+Nodes dump their logs into `nodes` directory. So, you need to create it by yourself
