@@ -1,0 +1,15 @@
+VARIABLES = ['x', 'y', 'z']
+OPS = ["add", "mul"]
+
+MAX_CACHE_SIZE = 3
+
+NULL_STATE = 0
+TRACING_LEADER = 1
+LEADER = 2
+
+LEADERS_AMOUNT = 3
+LEADER_ID = 1
+
+WAIT_TIMEOUT_SEC = 0.5
+
+DUMPFILE = "dump.vars"

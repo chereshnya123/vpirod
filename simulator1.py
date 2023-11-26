@@ -1,6 +1,6 @@
 import pika, json, sys
 import random as rand
-from protocol import *
+from config import *
 
 nodes_amount = int(sys.argv[1])
 
@@ -25,7 +25,6 @@ def HandleMessage(ch, method, properties, body):
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 
-
 '''
 Holds list of:
 {
@@ -45,7 +44,7 @@ channel.basic_consume(queue="simulator",
                       on_message_callback=HandleMessage,
                       auto_ack=False)
 
-# try:
-channel.start_consuming()
-# except:
-#     print("Simulator wrapped up")
+try:
+    channel.start_consuming()
+except:
+    print("Simulator wrapped up")

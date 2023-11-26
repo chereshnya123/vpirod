@@ -1,14 +1,34 @@
 import pika, json
-from protocol import *
+from config import *
 
+def TerminateMaster(master_id):
+    global channel
+    terminate_body = dict({"msg":"terminate", "terminate_id": master_id})
+    channel.basic_publish(exchange="master",
+                          routing_key="terminate",
+                          body=json.dumps(terminate_body))
+
+    channel.basic_publish(exchange="master",
+                          routing_key="master",
+                          body=json.dumps(terminate_body))
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 
 while True:
     request = dict()
     query = input().split()
-    if len(query) != 3:
+    if (len(query) == 0):
         continue
+    print("query[0] = ", query[0])
+    print("query = ", query)
+    if (query[0] == "terminate"):
+        TerminateMaster(int(query[1]))
+        continue
+        
+    if len(query) != 3:
+        print(f"Expected 3 parameters, got {len(query)}")
+        continue
+
     if query[0] not in VARIABLES:
         print("Not valid variable name!\nAvailable variables are: ", *VARIABLES)
         continue

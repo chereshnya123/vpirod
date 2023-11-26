@@ -1,15 +1,16 @@
 import pika, subprocess
-from protocol import *
+from config import *
 import sys
 
 processes = []
 
 def StartMasterProcess():
     global processes, replikas_amount
-    processes.append(subprocess.Popen(
-    f"python3 master1.py {replikas_amount}".split(), stdin=None, stdout=None,
-    stderr=None, close_fds=True
-    ))
+    for i in range(LEADERS_AMOUNT):
+        processes.append(subprocess.Popen(
+        f"python3 master1.py {i}".split(), stdin=None, stdout=None,
+        stderr=None, close_fds=True
+        ))
 
 def StartNodes(number_of_workers):
     global processes, replikas_amount
@@ -42,12 +43,20 @@ channel.queue_declare(queue="master", auto_delete=True)
 channel.exchange_declare(exchange="master", exchange_type="direct")
 channel.queue_bind(queue="master", exchange="master",
                    routing_key="client_request")
+channel.queue_bind(queue="master", exchange="master",
+                   routing_key="terminate")
+channel.queue_bind(queue="master", exchange="master",
+                   routing_key="ping")
 # Simulator queue & exchange
 channel.queue_declare(queue="simulator", auto_delete=True)
 channel.exchange_declare(exchange="simulator", exchange_type="direct")
 channel.queue_bind(exchange='simulator', queue='simulator')
 # Replika's queue & exchange
 channel.exchange_declare(exchange="replika_requests", exchange_type="direct")
+
+for i in range(LEADERS_AMOUNT):
+    channel.queue_declare(queue=f"master{i}", auto_delete=True)
+    channel.queue_bind(exchange="master", queue=f"master{i}", routing_key=str(i))
 
 StartMasterProcess()
 StartSimulatorProcess()
