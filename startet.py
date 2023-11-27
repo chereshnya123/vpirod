@@ -7,7 +7,7 @@ processes = []
 def CleanDump():
     f = open(DUMPFILE, "w")
     f.write(f"0\n0\n0\n0\n")
-    tmp = []
+    tmp = dict()
     f.write(json.dumps(tmp))
 
 def StartMasterProcess():
