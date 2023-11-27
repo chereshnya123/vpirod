@@ -75,7 +75,7 @@ connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 
 channel.queue_declare(queue=f"node{id}",
-                      auto_delete=True)
+                      auto_delete=False)
 
 channel.queue_bind(queue=f"node{id}",
                    exchange="replika_requests",

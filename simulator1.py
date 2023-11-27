@@ -42,7 +42,7 @@ channel = connection.channel()
 
 channel.basic_consume(queue="simulator",
                       on_message_callback=HandleMessage,
-                      auto_ack=False)
+                      auto_ack=True)
 
 try:
     channel.start_consuming()

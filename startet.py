@@ -39,7 +39,7 @@ conn = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = conn.channel()
 
 # Master's queue & exchange for getting client requests
-channel.queue_declare(queue="master", auto_delete=True)
+channel.queue_declare(queue="master", auto_delete=False)
 channel.exchange_declare(exchange="master", exchange_type="direct")
 channel.queue_bind(queue="master", exchange="master",
                    routing_key="client_request")
@@ -48,14 +48,14 @@ channel.queue_bind(queue="master", exchange="master",
 channel.queue_bind(queue="master", exchange="master",
                    routing_key="ping")
 # Simulator queue & exchange
-channel.queue_declare(queue="simulator", auto_delete=True)
+channel.queue_declare(queue="simulator", auto_delete=False)
 channel.exchange_declare(exchange="simulator", exchange_type="direct")
 channel.queue_bind(exchange='simulator', queue='simulator')
 # Replika's queue & exchange
 channel.exchange_declare(exchange="replika_requests", exchange_type="direct")
 
 for i in range(LEADERS_AMOUNT):
-    channel.queue_declare(queue=f"master{i}", auto_delete=True)
+    channel.queue_declare(queue=f"master{i}", auto_delete=False)
     channel.queue_bind(exchange="master", queue=f"master{i}", routing_key=str(i))
 
 StartMasterProcess()

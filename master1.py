@@ -9,11 +9,17 @@ def GetContext():
     vars['z'] = float(f.readline().split()[0])
     f.close()
 
+def DumpData():
+    global vars
+    f = open(DUMPFILE, 'w')
+    f.write(f"{vars['x']}\n{vars['y']}\n{vars['z']}")
+    f.close()
+
 def Init():
     for i in range(LEADERS_AMOUNT):
-        channel.queue_declare(queue=f"master{i}", auto_delete=True)
+        channel.queue_declare(queue=f"master{i}", auto_delete=False)
         channel.queue_bind(exchange="master", queue=f"master{i}", routing_key=str(i))
-    channel.queue_declare(queue="master", auto_delete=True)
+    channel.queue_declare(queue="master", auto_delete=False)
     channel.queue_bind(exchange="master", queue="master", routing_key="client_request")
     channel.queue_bind(exchange="master", queue="master", routing_key="ping")
     channel.queue_bind(exchange="master", queue="master", routing_key="terminate")
@@ -44,12 +50,6 @@ def TraceLeader():
         else:
             # print(received)
             continue
-
-def DumpData():
-    global vars
-    f = open(DUMPFILE, 'w')
-    f.write(f"{vars['x']}\n{vars['y']}\n{vars['z']}")
-    f.close()
 
 # Update current update_struct
 def AddUpdateBatch(body: dict):
@@ -180,7 +180,7 @@ connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 
 channel.queue_declare(queue=f"master{local_id}",
-                      auto_delete=True)
+                      auto_delete=False)
 
 channel.queue_bind(queue=f"master{local_id}",
                    exchange="master",
