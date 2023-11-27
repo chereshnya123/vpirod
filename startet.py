@@ -1,8 +1,14 @@
-import pika, subprocess
+import pika, subprocess, json
 from config import *
 import sys
 
 processes = []
+
+def CleanDump():
+    f = open(DUMPFILE, "w")
+    f.write(f"0\n0\n0\n0\n")
+    tmp = []
+    f.write(json.dumps(tmp))
 
 def StartMasterProcess():
     global processes, replikas_amount
@@ -53,6 +59,8 @@ channel.exchange_declare(exchange="simulator", exchange_type="direct")
 channel.queue_bind(exchange='simulator', queue='simulator')
 # Replika's queue & exchange
 channel.exchange_declare(exchange="replika_requests", exchange_type="direct")
+
+CleanDump()
 
 for i in range(LEADERS_AMOUNT):
     channel.queue_declare(queue=f"master{i}", auto_delete=False)

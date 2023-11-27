@@ -2,17 +2,19 @@ import pika, json, sys
 import time as t
 from config import *
 def GetContext():
-    global vars
+    global vars, update_num, update
     f = open(DUMPFILE, "r")
     vars['x'] = float(f.readline().split()[0])
     vars['y'] = float(f.readline().split()[0])
     vars['z'] = float(f.readline().split()[0])
+    update_num = int(f.readline().split()[0])
+    update = json.loads(f.readline())
     f.close()
 
 def DumpData():
-    global vars
+    global vars, update_num, update
     f = open(DUMPFILE, 'w')
-    f.write(f"{vars['x']}\n{vars['y']}\n{vars['z']}")
+    f.write(f"{vars['x']}\n{vars['y']}\n{vars['z']}\n{update_num}\n{json.dumps(update)}")
     f.close()
 
 def Init():
@@ -190,7 +192,7 @@ try:
         if local_state == LEADER:
             channel.basic_consume(queue="master",
                                 on_message_callback=HandleMessage,
-                                auto_ack=False)
+                                auto_ack=True)
             print(f"Master#{local_id} enters in LEADER")
             channel.start_consuming()
             GetContext()
@@ -204,7 +206,7 @@ try:
             print(f"Master#{local_id} enters in NULL_STATE")
             channel.basic_consume(queue=f"master{local_id}",
                                 on_message_callback=HandleMessage,
-                                auto_ack=False)
+                                auto_ack=True)
             channel.start_consuming()
             Init()
             GetContext()
