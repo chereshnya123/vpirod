@@ -148,10 +148,8 @@ def HandleMessage(ch, method, properties, body):
             print(f"I'm null state: local = {local_id}, leader = {leader_id}")
             channel.stop_consuming()
     elif msg == "terminate":
-        print(f"Master #{local_id} is terminated by user")
-        terminate_id = json.loads(body.decode())["terminate_id"]
-        if terminate_id == local_id:
-            raise KeyboardInterrupt()
+        print(f"[{local_id}]: Leader is terminated by user")
+        raise KeyboardInterrupt()
 def HandleSlaveMessage(ch, method, properties, body):
     pass
     

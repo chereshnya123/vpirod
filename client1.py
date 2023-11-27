@@ -1,16 +1,13 @@
 import pika, json
 from config import *
 
-def TerminateMaster(master_id):
+def TerminateLeader():
     global channel
-    terminate_body = dict({"msg":"terminate", "terminate_id": master_id})
+    terminate_body = dict({"msg":"terminate"})
     channel.basic_publish(exchange="master",
                           routing_key="terminate",
                           body=json.dumps(terminate_body))
 
-    channel.basic_publish(exchange="master",
-                          routing_key="master",
-                          body=json.dumps(terminate_body))
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 
@@ -22,7 +19,7 @@ while True:
     print("query[0] = ", query[0])
     print("query = ", query)
     if (query[0] == "terminate"):
-        TerminateMaster(int(query[1]))
+        TerminateLeader()
         continue
         
     if len(query) != 3:
