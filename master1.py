@@ -1,6 +1,15 @@
 import pika, json, sys
 import time as t
 from config import *
+
+def ChooseNextId():
+    global next_id, alive_ids
+    while next_id not in alive_ids:
+        next_id = (next_id + 1) % LEADERS_AMOUNT
+        if next_id == local_id:
+            break
+    return next_id
+
 def GetContext():
     global vars, update_num, update
     f = open(DUMPFILE, "r")
@@ -37,13 +46,14 @@ def TraceLeader():
                         auto_ack=True)
         if received == (None, None, None):
             print(f"[{local_id}]: Leader is dead!")
-            next_id = (next_id + 1) % LEADERS_AMOUNT
+            alive_ids.discard(leader_id)
+            next_id = ChooseNextId()
             if next_id == local_id:
                 leader_id = local_id
                 local_state = LEADER
                 break
-            vote_body = dict({"propose_id": local_id, "msg": "voting"})
-            print(f"[{local_id}]: Master-watchdog start voting: Propose id = {local_id}, sent to = {next_id}")
+            vote_body = dict({"propose_id": local_id, "msg": "voting", "dead_id": leader_id})
+            print(f"[{local_id}]: Master-watchdog start voting: Propose id = {local_id}, sent to = {next_id}, dead_leader_id = {leader_id}")
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
                                   body=json.dumps(vote_body))
@@ -71,7 +81,7 @@ def UpdateLocalVariables(body):
     print(f"[{local_id}]: Leader variables: {vars}")
 
 def HandleMessage(ch, method, properties, body):
-    global vars, updates, update_num, leader_id, local_state
+    global vars, updates, update_num, leader_id, local_state, alive_ids, next_id
     key = method.routing_key
     if key == "client_request":
         update = json.loads(body.decode())
@@ -100,11 +110,14 @@ def HandleMessage(ch, method, properties, body):
     if msg == "OK":
         pass
     elif msg == "voting":
+        dead_id = int(json.loads(body.decode())["dead_id"])
+        if dead_id in alive_ids:
+            alive_ids.discard(dead_id)
         print(f"[{local_id}]: Vote")
         propose_id = int(json.loads(body.decode())["propose_id"])
         if propose_id == local_id:
             print(f"[{local_id}]: New leader is {local_id}")
-            vote_body = dict({"leader_id":propose_id, "msg":"voting_end"})
+            vote_body = dict({"leader_id":propose_id, "msg":"voting_end", "dead_id": dead_id})
             leader_id = local_id
             local_state = LEADER
             channel.basic_publish(exchange="master",
@@ -112,13 +125,13 @@ def HandleMessage(ch, method, properties, body):
                                   body=json.dumps(vote_body))
         elif propose_id > local_id:
             print(f"[{local_id}]: Voting: propose_id = {propose_id}, send to = {next_id}")
-            vote_body = dict({"propose_id" : propose_id, "msg":"voting"})
+            vote_body = dict({"propose_id" : propose_id, "msg":"voting", "dead_id": dead_id})
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
                                   body=json.dumps(vote_body))
         elif propose_id < local_id:
             print(f"[{local_id}]: Voting: propose_id = {local_id}, send to = {next_id}")
-            vote_body = dict({"propose_id":local_id, "msg": "voting"})
+            vote_body = dict({"propose_id":local_id, "msg": "voting", "dead_id": dead_id})
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
                                   body=json.dumps(vote_body))
@@ -128,6 +141,7 @@ def HandleMessage(ch, method, properties, body):
         print(f"[{local_id}]: Chose leader = {leader_id}")
         if leader_id == next_id:
             local_state = TRACING_LEADER
+            next_id = ChooseNextId()
             vote_end_body = dict({"leader_id": leader_id, "msg":"voting_end"})
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
@@ -136,10 +150,12 @@ def HandleMessage(ch, method, properties, body):
             channel.stop_consuming()
         elif leader_id == local_id:
             local_state = LEADER
+            next_id = ChooseNextId()
             print(f"[{local_id}]: I'm new leader after voting: leader = {leader_id}")
             channel.stop_consuming()
         else:
             local_state = NULL_STATE
+            next_id = ChooseNextId()
             vote_end_body = dict({"leader_id":leader_id, "msg":"voting_end"})
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
@@ -159,7 +175,7 @@ vars['z'] = 0
 
 update = dict()
 update_num = 0
-
+alive_ids = set([i for i in range(LEADERS_AMOUNT)])
 local_id = int(sys.argv[1])
 leader_id = LEADER_ID
 next_id = (local_id + 1) % LEADERS_AMOUNT
