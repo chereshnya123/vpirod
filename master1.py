@@ -28,7 +28,7 @@ def Init():
     
 def TraceLeader():
     global channel, local_id, next_id, leader_id, local_state
-    print(f"Master${local_id} is tracing : {next_id}")
+    print(f"[{local_id}]: Watchdog : tracing = {next_id}")
     while (1):
         ping_body = dict({"id": local_id, "msg":"ping"})
         channel.basic_publish(exchange="master", routing_key="ping", body=json.dumps(ping_body))
@@ -36,21 +36,20 @@ def TraceLeader():
         received = channel.basic_get(queue=f"master{local_id}",
                         auto_ack=True)
         if received == (None, None, None):
-            print("Leader is dead!")
+            print(f"[{local_id}]: Leader is dead!")
             next_id = (next_id + 1) % LEADERS_AMOUNT
             if next_id == local_id:
                 leader_id = local_id
                 local_state = LEADER
                 break
             vote_body = dict({"propose_id": local_id, "msg": "voting"})
-            print(f"Master-watchdog #{local_id} is voting...\nPropose id = {local_id}, sent to = {next_id}")
+            print(f"[{local_id}]: Master-watchdog start voting: Propose id = {local_id}, sent to = {next_id}")
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
                                   body=json.dumps(vote_body))
             local_state = NULL_STATE
             break
         else:
-            # print(received)
             continue
 
 # Update current update_struct
@@ -69,7 +68,7 @@ def UpdateLocalVariables(body):
     else:
         vars[body["var"]] += body["value"]
     DumpData()
-    print(f"Master variables: {vars}")
+    print(f"[{local_id}]: Leader variables: {vars}")
 
 def HandleMessage(ch, method, properties, body):
     global vars, updates, update_num, leader_id, local_state
@@ -101,10 +100,10 @@ def HandleMessage(ch, method, properties, body):
     if msg == "OK":
         pass
     elif msg == "voting":
-        print(f"Master #{local_id} is voting...")
+        print(f"[{local_id}]: Vote")
         propose_id = int(json.loads(body.decode())["propose_id"])
         if propose_id == local_id:
-            print(f"New leader is {local_id}")
+            print(f"[{local_id}]: New leader is {local_id}")
             vote_body = dict({"leader_id":propose_id, "msg":"voting_end"})
             leader_id = local_id
             local_state = LEADER
@@ -112,13 +111,13 @@ def HandleMessage(ch, method, properties, body):
                                   routing_key=str(next_id),
                                   body=json.dumps(vote_body))
         elif propose_id > local_id:
-            print(f"Master #{local_id}: propose_id = {propose_id}, send to = {next_id}")
+            print(f"[{local_id}]: Voting: propose_id = {propose_id}, send to = {next_id}")
             vote_body = dict({"propose_id" : propose_id, "msg":"voting"})
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
                                   body=json.dumps(vote_body))
         elif propose_id < local_id:
-            print(f"Master #{local_id}: propose_id = {local_id}, send to = {next_id}")
+            print(f"[{local_id}]: Voting: propose_id = {local_id}, send to = {next_id}")
             vote_body = dict({"propose_id":local_id, "msg": "voting"})
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
@@ -126,18 +125,18 @@ def HandleMessage(ch, method, properties, body):
             
     elif msg == "voting_end":
         leader_id = int(json.loads(body.decode())["leader_id"])
-        print(f"Chose leader = {leader_id}")
+        print(f"[{local_id}]: Chose leader = {leader_id}")
         if leader_id == next_id:
             local_state = TRACING_LEADER
             vote_end_body = dict({"leader_id": leader_id, "msg":"voting_end"})
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
                                   body=json.dumps(vote_end_body))
-            print(f"I'm tracer: local = {local_id}, leader = {leader_id}")
+            print(f"[{local_id}]: I'm tracer after voting: leader = {leader_id}")
             channel.stop_consuming()
         elif leader_id == local_id:
             local_state = LEADER
-            print(f"I'm new leader: local = {local_id}, leader = {leader_id}")
+            print(f"[{local_id}]: I'm new leader after voting: leader = {leader_id}")
             channel.stop_consuming()
         else:
             local_state = NULL_STATE
@@ -145,7 +144,7 @@ def HandleMessage(ch, method, properties, body):
             channel.basic_publish(exchange="master",
                                   routing_key=str(next_id),
                                   body=json.dumps(vote_end_body))
-            print(f"I'm null state: local = {local_id}, leader = {leader_id}")
+            print(f"[{local_id}]: I'm null state after voting: leader = {leader_id}")
             channel.stop_consuming()
     elif msg == "terminate":
         print(f"[{local_id}]: Leader is terminated by user")
@@ -168,12 +167,12 @@ next_id = (local_id + 1) % LEADERS_AMOUNT
 local_state = NULL_STATE
 if next_id == leader_id:
     local_state = TRACING_LEADER
-    print(f"I'm tracing leader! #{local_id}")
+    print(f"[{local_id}]: Start as tracing leader!")
 elif local_id == leader_id:
-    print(f"I'm leader! #{local_id}")
+    print(f"[{local_id}]: Start as leader!")
     local_state = LEADER
 else:
-    print(f"I'm NULL #{local_id}")
+    print(f"[{local_id}]: Start as NULL")
     local_state = NULL_STATE
 
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
@@ -191,24 +190,26 @@ try:
             channel.basic_consume(queue="master",
                                 on_message_callback=HandleMessage,
                                 auto_ack=True)
-            print(f"Master#{local_id} enters in LEADER")
+            print(f"[{local_id}]: Enter LEADER state")
             channel.start_consuming()
             GetContext()
             Init()
-            print(f"Stop consuming as LEADER = {local_id}, new ROLE = {local_state}")
+            print(f"[{local_id}]: Stop consuming as LEADER, new ROLE = {local_state}")
         elif local_state == TRACING_LEADER:
-            print(f"Master#{local_id} enters in TRACER")
+            print(f"[{local_id}]: Enter TRACER state")
             TraceLeader()
             GetContext()
         elif local_state == NULL_STATE:
-            print(f"Master#{local_id} enters in NULL_STATE")
+            print(f"[{local_id}]: Enter NULL_STATE")
             channel.basic_consume(queue=f"master{local_id}",
                                 on_message_callback=HandleMessage,
                                 auto_ack=True)
             channel.start_consuming()
             Init()
             GetContext()
-            print(f"Stop consuming as NULL_STATE = {local_id}, , new ROLE = {local_state}")
+            print(f"[{local_id}]: Stop consuming as NULL_STATE, new ROLE = {local_state}")
+except KeyboardInterrupt:
+    print(f"Master {local_id} was terminated by user")
 except:
-    # print(f"Master {local_id} was terminated. Error message: \n")
+    print(f"Master {local_id} was terminated.")
     raise

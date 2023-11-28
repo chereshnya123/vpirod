@@ -6,6 +6,7 @@ nodes_amount = int(sys.argv[1])
 
 def SendUpdates():
     global channel, update_batch
+    print("[Simulator]: Send updates!")
     for i in range(nodes_amount):
         send_seq = rand.sample(range(MAX_CACHE_SIZE), MAX_CACHE_SIZE)
         for update_num in send_seq:
@@ -16,7 +17,6 @@ def SendUpdates():
 def HandleMessage(ch, method, properties, body):
     global update_batch
     update = json.loads(body)
-    # print("simulator update: ", update)
     update_batch.append(update)
     if len(update_batch) == MAX_CACHE_SIZE:
         SendUpdates()

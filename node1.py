@@ -24,7 +24,7 @@ def UpdateFromCache():
         # print("empty cache!")
         return False
     if last_update+1 in list(update_cache.keys()):
-        print(f"NODE[{id}]: Update from cache: ", update_cache[(last_update+1)])
+        # print(f"NODE[{id}]: Update from cache: ", update_cache[(last_update+1)])
         # print("Update: ", update_cache)
         UpdateData(update_cache[(last_update+1)])
         del update_cache[(last_update)]
@@ -63,7 +63,7 @@ def HandleUpdate(ch, method, properties, body):
     # print("Node got: ", update)
     update_nums = int(list(update.keys())[0])
     if update_nums == last_update + 1:
-        print(f"NODE[{id}]: Update immediately with:", update[str(update_nums)])
+        # print(f"NODE[{id}]: Update immediately with:", update[str(update_nums)])
         UpdateData(update[str(update_nums)])
         update = None
     else:
